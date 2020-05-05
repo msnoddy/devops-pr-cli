@@ -1,0 +1,13 @@
+{
+  "name": "devops-pr-cli",
+  "version": "1.0.0",
+  "main": "bin/devops-pr-cli",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "axios": "^0.19.2",
+    "moment": "^2.25.3",
+    "table": "^5.4.6",
+    "yaml": "^1.9.2"
+  }
+}

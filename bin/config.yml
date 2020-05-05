@@ -1,0 +1,17 @@
+devOps:
+  apis:
+    git:
+      baseUrl: https://dev.azure.com/some-project/38564965-7c7b-46fa-876b-0a0ca84e1ba3/_apis/git
+      repo: 7f812689-3ddb-4b2d-961a-63d103b32138
+  pullRequests:
+    baseUrl: https://dev.azure.com/nhsapp/NHS%20App/_git/nhsapp/pullrequest
+  auth:
+    # this field accepts reading the value from a file specified via an env var: `$<env_var_name>`
+    token: $DEV_OPS_AUTH_TOKEN_FILE
+  team:
+    matt: f5122c97-baee-4dd3-9fef-bf73841471fc
+    caoimhe: fe40a59d-912b-45fa-8b58-a21d6080150e
+    sean: 9b4da082-f1d8-4bf3-9afd-110380db3d23
+jira:
+  enabled: false
+  baseUrl: https://jira.some.domain.com

@@ -1,0 +1,163 @@
+#! /usr/bin/env node
+const { existsSync, readFileSync } = require("fs")
+const { exit } = require("process")
+
+const axios = require("axios")
+const moment = require("moment")
+const yaml = require("yaml")
+const { table } = require("table")
+
+const TODAY = moment()
+
+function log(msg, level, method) {
+  method(`${moment().toISOString()} ${level}: ${msg}`)
+}
+
+function error(msg) {
+  log(msg, "Error", console.error)
+}
+
+function info(msg) {
+  log(msg, "INFO", console.log)
+}
+
+function buildUrlsForPr(pr, jiraBaseUrl) {
+  return `PR:   ${pr.url}\nJIRA: ${jiraBaseUrl}/browse/${pr.title.split(":")[0]}`
+}
+
+function buildOutputTable(pullRequestsForTeam, configValues) {
+  const { jiraBaseUrl } = configValues
+
+  info(`Building output table for pull requests`)
+
+  // order by dev name
+  pullRequestsForTeam.sort((a, b) => a.devName.localeCompare(b.devName))
+
+  const header = []
+  header[0] = [ "ID", "Dev", "Title", "Created", "URLs" ]
+
+  const rows = pullRequestsForTeam.map(pr =>
+    [ pr.id, pr.devName, pr.title, `${pr.ageInDays} days ago`, buildUrlsForPr(pr, jiraBaseUrl) ] 
+  )
+
+  return header.concat(rows)
+}
+
+function getDaysSinceDate(date) {
+  return TODAY.diff(date, "days")
+}
+
+function mapPullRequest (pr, prBaseUrl) {
+  return {
+    id: pr.pullRequestId,
+    title: pr.title,
+    url: `${prBaseUrl}/${pr.pullRequestId}`,
+    devName: pr.createdBy.displayName.split(" ")[0],
+    ageInDays: getDaysSinceDate(moment(pr.creationDate))
+  }
+}
+
+function buildDevPrsUrl(dev) {
+  return `/pullrequests?api-version=5.0&searchCriteria.creatorId=${dev}`
+}
+
+async function fetchPullRequests(configValues) {
+  const { gitApi, authToken, team, devs, prBaseUrl } = configValues
+  const apiClient = axios.create({
+    baseURL: `${gitApi.baseUrl}/repositories/${gitApi.repo}`,
+    auth: {
+      username: "Basic",
+      password: authToken
+    }
+  })
+
+  info(`Requesting pull requests for all team members`)
+
+  const prRequestsForTeam = devs.map(dev =>
+    apiClient.get(
+      buildDevPrsUrl(team[dev])
+    )
+  )
+  const prResponsesForTeam = await Promise.all(prRequestsForTeam)
+
+  return prResponsesForTeam.flatMap(res =>
+    res.data.value.map(pr =>
+      mapPullRequest(pr, prBaseUrl)
+    )
+  )
+}
+
+function loadConfig() {
+  const configPath = process.env.DEV_OPS_PR_CLI_CFG
+
+  if (typeof configPath !== "string" || configPath.trim() === "") {
+    throw new Error("No config path is defined in env var DEV_OPS_PR_CLI_CFG")
+  }
+
+  if (!existsSync(configPath)) {
+    throw new Error(`Config path defined in env var DEV_OPS_PR_CLI_CFG does not exist: ${configPath}`)
+  }
+
+  info(`Loading config from path: ${configPath}`)
+
+  const config = yaml.parse(
+    readFileSync(configPath).toString("utf8")
+  )
+
+  if (config.devOps.auth.token.match(/^\$.+$/)) {
+    const tokenFileEnvVar = config.devOps.auth.token.replace("$", "")
+
+    const tokenFilePath = process.env[tokenFileEnvVar]
+
+    if (typeof tokenFilePath !== "string" || tokenFilePath.trim() === "") {
+      throw new Error(
+        `Env var specified in 'devOps.auth.token' does not exist or is empty: ${tokenFileEnvVar}`
+      )
+    }
+
+    info(`Loading auth token file from env var: ${tokenFileEnvVar}`)
+
+    if (!existsSync(tokenFilePath)) {
+      throw new Error(
+        `Auth token path defined in env var ${tokenFileEnvVar} does not exist: ${tokenFilePath}`
+      )
+    }
+
+    info(`Loading auth token from secret file: ${tokenFilePath}`)
+
+    config.devOps.auth.token = readFileSync(tokenFilePath).toString("utf8")
+  }
+
+  return config
+}
+
+function getConfigValues() {
+  const config = loadConfig()
+  const team = config.devOps.team
+
+  return {
+    gitApi: config.devOps.apis.git,
+    authToken: config.devOps.auth.token,
+    team,
+    devs: Object.keys(team),
+    prBaseUrl: config.devOps.pullRequests.baseUrl,
+    jiraBaseUrl: config.jira.baseUrl
+  }
+}
+
+async function main() {
+  const configValues = getConfigValues()
+  const outputTable = buildOutputTable(
+    (await fetchPullRequests(configValues)),
+    configValues
+  )
+
+  console.log(`\n${table(outputTable)}`)
+}
+
+main()
+  .then(() => exit(0) )
+  .catch(ex => {
+    error(`Failed to load pull requests: ${ex}`)
+    exit(1)
+  })
