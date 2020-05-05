@@ -21,12 +21,20 @@ function info(msg) {
   log(msg, "INFO", console.log)
 }
 
-function buildUrlsForPr(pr, jiraBaseUrl) {
-  return `PR:   ${pr.url}\nJIRA: ${jiraBaseUrl}/browse/${pr.title.split(":")[0]}`
+function buildUrlsForPr(pr, jiraConfig) {
+  const prUrl = `PR:   ${pr.url}`
+
+  if (jiraConfig.enabled !== true) {
+    return prUrl
+  }
+
+  const jiraRef = pr.title.split(":")[0]
+
+  return `${prUrl}\nJIRA: ${jiraConfig.baseUrl}/browse/${jiraRef}`
 }
 
 function buildOutputTable(pullRequestsForTeam, configValues) {
-  const { jiraBaseUrl } = configValues
+  const { jiraConfig } = configValues
 
   info(`Building output table for pull requests`)
 
@@ -37,7 +45,7 @@ function buildOutputTable(pullRequestsForTeam, configValues) {
   header[0] = [ "ID", "Dev", "Title", "Created", "URLs" ]
 
   const rows = pullRequestsForTeam.map(pr =>
-    [ pr.id, pr.devName, pr.title, `${pr.ageInDays} days ago`, buildUrlsForPr(pr, jiraBaseUrl) ] 
+    [ pr.id, pr.devName, pr.title, `${pr.ageInDays} days ago`, buildUrlsForPr(pr, jiraConfig) ] 
   )
 
   return header.concat(rows)
@@ -141,7 +149,7 @@ function getConfigValues() {
     team,
     devs: Object.keys(team),
     prBaseUrl: config.devOps.pullRequests.baseUrl,
-    jiraBaseUrl: config.jira.baseUrl
+    jiraConfig: config.jira
   }
 }
 
