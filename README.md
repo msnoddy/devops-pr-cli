@@ -2,6 +2,8 @@
 
 Simple CLI tool that dumps Azure Dev Ops pull request for a team of developers into a table, grouped by dev name and ordered by age.
 
+*Note: this has only been tested with Node v14*
+
 ## Quickstart
 
 - Copy the config file [bin/config.yml](bin/config.yml) and fill it out with your settings
