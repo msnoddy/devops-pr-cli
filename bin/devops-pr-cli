@@ -95,6 +95,29 @@ async function fetchPullRequests(configValues) {
   )
 }
 
+function readTokenFromSecretFile(tokenConfigValue) {
+  const tokenFileEnvVar = tokenConfigValue.replace("$", "")
+  const tokenFilePath = process.env[tokenFileEnvVar]
+
+  if (typeof tokenFilePath !== "string" || tokenFilePath.trim() === "") {
+    throw new Error(
+      `Env var specified in 'devOps.auth.token' does not exist or is empty: ${tokenFileEnvVar}`
+    )
+  }
+
+  info(`Loading auth token file from env var: ${tokenFileEnvVar}`)
+
+  if (!existsSync(tokenFilePath)) {
+    throw new Error(
+      `Auth token path defined in env var ${tokenFileEnvVar} does not exist: ${tokenFilePath}`
+    )
+  }
+
+  info(`Loading auth token from secret file: ${tokenFilePath}`)
+
+  return readFileSync(tokenFilePath).toString("utf8")
+}
+
 function loadConfig() {
   const configPath = process.env.DEV_OPS_PR_CLI_CFG
 
@@ -113,27 +136,7 @@ function loadConfig() {
   )
 
   if (config.devOps.auth.token.match(/^\$.+$/)) {
-    const tokenFileEnvVar = config.devOps.auth.token.replace("$", "")
-
-    const tokenFilePath = process.env[tokenFileEnvVar]
-
-    if (typeof tokenFilePath !== "string" || tokenFilePath.trim() === "") {
-      throw new Error(
-        `Env var specified in 'devOps.auth.token' does not exist or is empty: ${tokenFileEnvVar}`
-      )
-    }
-
-    info(`Loading auth token file from env var: ${tokenFileEnvVar}`)
-
-    if (!existsSync(tokenFilePath)) {
-      throw new Error(
-        `Auth token path defined in env var ${tokenFileEnvVar} does not exist: ${tokenFilePath}`
-      )
-    }
-
-    info(`Loading auth token from secret file: ${tokenFilePath}`)
-
-    config.devOps.auth.token = readFileSync(tokenFilePath).toString("utf8")
+    config.devOps.auth.token = readTokenFromSecretFile(config.devOps.auth.token)
   }
 
   return config
