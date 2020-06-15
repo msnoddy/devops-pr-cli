@@ -2,9 +2,12 @@ devOps:
   apis:
     git:
       baseUrl: https://dev.azure.com/some-project/38564965-7c7b-46fa-876b-0a0ca84e1ba3/_apis/git
-      repo: 7f812689-3ddb-4b2d-961a-63d103b32138
+      repos: {} # setting an empty object will get PRs for all repos
+      # ...or filter to specific repos like below
+      #  repoOne: 7f812689-3ddb-4b2d-961a-63d103b32138
+      #  anotherRepo: 8f812689-7fcr-4b2f-971a-13d103b32132
   pullRequests:
-    baseUrl: https://dev.azure.com/nhsapp/NHS%20App/_git/nhsapp/pullrequest
+    baseUrl: https://dev.azure.com/someproject/Some%20Project/_git/{{ repoName }}/pullrequest
   auth:
     # this field accepts reading the value from a file specified via an env var: `$<env_var_name>`
     token: $DEV_OPS_AUTH_TOKEN_FILE

@@ -56,10 +56,13 @@ function getDaysSinceDate(date) {
 }
 
 function mapPullRequest (pr, prBaseUrl) {
+  const repoName = pr.repository.name
+  const repoPrBaseUrl = prBaseUrl.replace(/{{\s*repoName\s*}}/g, repoName)
+
   return {
     id: pr.pullRequestId,
     title: pr.title,
-    url: `${prBaseUrl}/${pr.pullRequestId}`,
+    url: `${repoPrBaseUrl}/${pr.pullRequestId}`,
     devName: pr.createdBy.displayName.split(" ")[0],
     ageInDays: getDaysSinceDate(moment(pr.creationDate))
   }
@@ -69,24 +72,60 @@ function buildDevPrsUrl(dev) {
   return `/pullrequests?api-version=5.0&searchCriteria.creatorId=${dev}`
 }
 
-async function fetchPullRequests(configValues) {
-  const { gitApi, authToken, team, devs, prBaseUrl } = configValues
+async function fetchAllRepos(baseUrl, authToken) {
   const apiClient = axios.create({
-    baseURL: `${gitApi.baseUrl}/repositories/${gitApi.repo}`,
+    baseURL: `${baseUrl}/repositories`,
     auth: {
       username: "Basic",
       password: authToken
     }
   })
 
-  info(`Requesting pull requests for all team members`)
+  const reposResponse = await apiClient.get("/")
 
-  const prRequestsForTeam = devs.map(dev =>
-    apiClient.get(
-      buildDevPrsUrl(team[dev])
+  return Object.assign(
+    {},
+    ...reposResponse.data.value.map(r =>
+      ({
+        [r.name]: r.id
+      })
     )
   )
-  const prResponsesForTeam = await Promise.all(prRequestsForTeam)
+}
+
+async function fetchPullRequests(configValues) {
+  const { gitApi, authToken, team, devs, prBaseUrl } = configValues
+
+  let repos = gitApi.repos
+
+  if (typeof repos !== "object" || Object.keys(repos).length < 1) {
+    repos = await fetchAllRepos(gitApi.baseUrl, authToken)
+  }
+
+  const repoResponses = Object.keys(repos)
+    .map(r => {
+      const apiClient = axios.create({
+        baseURL: `${gitApi.baseUrl}/repositories/${repos[r]}`,
+        auth: {
+          username: "Basic",
+          password: authToken
+        }
+      })
+
+      info(`Requesting team member pull requests from repo ${r}`)
+
+      const prRequestsForTeam = devs.map(dev =>
+        apiClient.get(
+          buildDevPrsUrl(team[dev])
+        )
+      )
+
+      return Promise.all(prRequestsForTeam)
+    })
+
+  const prResponsesForTeam = (
+    await Promise.all(repoResponses)
+  ).flatMap(i => i)
 
   return prResponsesForTeam.flatMap(res =>
     res.data.value.map(pr =>
@@ -167,7 +206,7 @@ async function main() {
 }
 
 main()
-  .then(() => exit(0) )
+  .then(() => exit(0))
   .catch(ex => {
     error(`Failed to load pull requests: ${ex}`)
     exit(1)

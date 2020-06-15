@@ -1,6 +1,6 @@
 {
   "name": "devops-pr-cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "bin/devops-pr-cli",
   "license": "MIT",
   "private": true,
