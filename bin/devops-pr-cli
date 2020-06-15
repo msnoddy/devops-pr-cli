@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 const { existsSync, readFileSync } = require("fs")
-const { exit } = require("process")
+const { argv, exit } = require("process")
 
 const axios = require("axios")
 const moment = require("moment")
@@ -9,7 +9,15 @@ const { table } = require("table")
 
 const TODAY = moment()
 
+const beQuiet = argv.length > 0 && argv.find(a =>
+  ["-q", "--quiet"].includes(a.toLowerCase().trim())
+)
+
 function log(msg, level, method) {
+  if (beQuiet) {
+    return
+  }
+
   method(`${moment().toISOString()} ${level}: ${msg}`)
 }
 
