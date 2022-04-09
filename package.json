@@ -6,7 +6,7 @@
   "private": true,
   "dependencies": {
     "axios": "^0.19.2",
-    "moment": "^2.25.3",
+    "moment": "^2.29.2",
     "table": "^5.4.6",
     "yaml": "^1.9.2"
   }
